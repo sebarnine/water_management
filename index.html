@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>ระบบ Web GIS จัดการผังน้ำอีสาน</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet/dist/leaflet.css"
+  />
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    .header {
+      height: 55px;
+      background: #0b3558;
+      color: white;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .container {
+      display: flex;
+      height: calc(100vh - 55px);
+    }
+
+    .sidebar {
+      width: 300px;
+      background: #f5f7fa;
+      border-right: 1px solid #ddd;
+      padding: 15px;
+      box-sizing: border-box;
+      overflow-y: auto;
+    }
+
+    .sidebar h3 {
+      margin-top: 0;
+      color: #0b3558;
+    }
+
+    .layer-box {
+      background: white;
+      padding: 12px;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+
+    #map {
+      flex: 1;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    ระบบสารสนเทศเพื่อการจัดการผังน้ำอีสาน
+  </div>
+
+  <div class="container">
+    <div class="sidebar">
+      <h3>ข้อมูลพื้นฐาน</h3>
+
+      <div class="layer-box">
+        <label>
+          <input type="checkbox" checked />
+          ขอบเขตลุ่มน้ำ
+        </label>
+      </div>
+
+      <div class="layer-box">
+        <label>
+          <input type="checkbox" checked />
+          เส้นลำน้ำ
+        </label>
+      </div>
+
+      <div class="layer-box">
+        <label>
+          <input type="checkbox" />
+          แหล่งน้ำ
+        </label>
+      </div>
+
+      <div class="layer-box">
+        <label>
+          <input type="checkbox" />
+          พื้นที่ป่าไม้
+        </label>
+      </div>
+    </div>
+
+    <div id="map"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <script>
+    var map = L.map('map').setView([15.5, 103.5], 7);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    L.marker([15.2287, 104.8564])
+      .addTo(map)
+      .bindPopup('ตัวอย่างจุดข้อมูลผังน้ำอีสาน');
+  </script>
+</body>
+</html>
