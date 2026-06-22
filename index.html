@@ -4,10 +4,7 @@
   <meta charset="UTF-8" />
   <title>ระบบ Web GIS จัดการผังน้ำอีสาน</title>
 
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet/dist/leaflet.css"
-  />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
   <style>
     body {
@@ -32,7 +29,7 @@
     }
 
     .sidebar {
-      width: 330px;
+      width: 340px;
       background: #f5f7fa;
       border-right: 1px solid #ddd;
       padding: 15px;
@@ -46,7 +43,7 @@
     }
 
     .sidebar h4 {
-      margin: 16px 0 8px;
+      margin: 14px 0 8px;
       color: #0b3558;
       font-size: 15px;
     }
@@ -70,23 +67,17 @@
 
     select {
       width: 100%;
-      height: 180px;
-      padding: 8px;
+      padding: 9px;
       border-radius: 8px;
       border: 1px solid #ccc;
       font-size: 14px;
       box-sizing: border-box;
     }
 
-    .btn-row {
-      display: flex;
-      gap: 8px;
-      margin-top: 10px;
-    }
-
     button {
-      flex: 1;
-      padding: 8px;
+      width: 100%;
+      margin-top: 8px;
+      padding: 9px;
       border: none;
       border-radius: 6px;
       cursor: pointer;
@@ -103,7 +94,7 @@
       color: #222;
     }
 
-    .note {
+    .status {
       font-size: 12px;
       color: #666;
       margin-top: 8px;
@@ -138,23 +129,22 @@
           ขอบเขตจังหวัด
         </label>
 
-        <h4>กรองจังหวัด</h4>
+        <h4>ตัวกรองจังหวัด</h4>
 
-        <select id="provinceSelect" multiple>
-          <option>กำลังโหลดรายชื่อจังหวัด...</option>
+        <select id="provinceSelect">
+          <option value="">กำลังโหลดรายชื่อจังหวัด...</option>
         </select>
 
-        <div class="btn-row">
-          <button class="btn-primary" id="applyProvinceFilter">
-            แสดงจังหวัดที่เลือก
-          </button>
-          <button class="btn-secondary" id="clearProvinceFilter">
-            แสดงทั้งหมด
-          </button>
-        </div>
+        <button class="btn-primary" id="zoomProvinceBtn">
+          ซูมไปจังหวัดที่เลือก
+        </button>
 
-        <div class="note">
-          กด Ctrl ค้างไว้เพื่อเลือกหลายจังหวัด หรือกด Shift เพื่อเลือกเป็นช่วง
+        <button class="btn-secondary" id="showAllProvinceBtn">
+          แสดงทุกจังหวัด
+        </button>
+
+        <div class="status" id="provinceStatus">
+          ระบบจะดึงชื่อจังหวัดจาก API อัตโนมัติ
         </div>
       </div>
 
@@ -184,6 +174,7 @@
   </div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
   <script>
     // ===============================
@@ -191,12 +182,12 @@
     // ===============================
     var map = L.map('map').setView([15.5, 103.5], 7);
 
-    var baseMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap'
     }).addTo(map);
 
     // ===============================
-    // 2) ชั้นข้อมูลขอบเขตลุ่มน้ำ จาก basin.geojson
+    // 2) ขอบเขตลุ่มน้ำจาก basin.geojson
     // ===============================
     var basinLayer = L.geoJSON(null, {
       style: {
@@ -217,8 +208,6 @@
           props.Name ||
           props.basin_name ||
           props.BASIN_NAME ||
-          props.Subbasin ||
-          props.SUBBASIN ||
           'ขอบเขตลุ่มน้ำ';
 
         layer.bindPopup('<b>ขอบเขตลุ่มน้ำ</b><br>' + name);
@@ -227,9 +216,6 @@
 
     fetch('basin.geojson')
       .then(function (response) {
-        if (!response.ok) {
-          throw new Error('ไม่พบไฟล์ basin.geojson');
-        }
         return response.json();
       })
       .then(function (data) {
@@ -241,34 +227,13 @@
         }
       })
       .catch(function (error) {
-        console.error('โหลดไฟล์ basin.geojson ไม่สำเร็จ:', error);
+        console.error('โหลด basin.geojson ไม่สำเร็จ:', error);
       });
 
     // ===============================
-    // 3) ชั้นข้อมูลขอบเขตจังหวัด จาก ArcGIS FeatureServer
+    // 3) API ขอบเขตจังหวัด
     // ===============================
-
-    var provinceLayer = L.geoJSON(null, {
-      style: {
-        color: '#6a1b9a',
-        weight: 2,
-        opacity: 1,
-        fillColor: '#ffffff',
-        fillOpacity: 0
-      },
-      onEachFeature: function (feature, layer) {
-        var props = feature.properties || {};
-        var name = getProvinceName(props);
-
-        var popupText = '<b>ขอบเขตจังหวัด</b><br>' + name;
-
-        layer.bindPopup(popupText);
-      }
-    });
-
-    var allProvinceData = null;
-
-    var provinceUrl =
+    var provinceApiUrl =
       'https://services1.arcgis.com/jSaRWj2TDlcN1zOC/arcgis/rest/services/Thailand_Province_Boundaries_view/FeatureServer/1/query?' +
       'where=1%3D1&' +
       'outFields=*&' +
@@ -276,10 +241,57 @@
       'outSR=4326&' +
       'f=geojson';
 
-    fetch(provinceUrl)
+    var allProvinceData = null;
+    var provinceFeatureByName = {};
+
+    // ===============================
+    // 4) ชั้นข้อมูลจังหวัด
+    // ===============================
+    var provinceLayer = L.geoJSON(null, {
+      style: provinceDefaultStyle,
+
+      onEachFeature: function (feature, layer) {
+        var props = feature.properties || {};
+
+        var provinceThai = getProvinceThaiName(props);
+        var provinceEnglish = getProvinceEnglishName(props);
+        var provinceCode = getProvinceCode(props);
+        var areaInfo = getProvinceArea(feature);
+
+        var popupText =
+          '<b>ขอบเขตจังหวัด</b><br>' +
+          '<b>ชื่อจังหวัด:</b> ' + provinceThai + '<br>' +
+          '<b>ชื่ออังกฤษ:</b> ' + provinceEnglish + '<br>' +
+          '<b>รหัสจังหวัด:</b> ' + provinceCode + '<br>' +
+          '<b>เนื้อที่:</b> ' + areaInfo.areaSqKm + ' ตร.กม.<br>' +
+          '<b>เนื้อที่:</b> ' + areaInfo.areaRai + ' ไร่';
+
+        layer.bindPopup(popupText);
+
+        layer.on('click', function () {
+          document.getElementById('provinceSelect').value = provinceThai;
+          filterAndZoomToProvince(provinceThai);
+        });
+      }
+    });
+
+    function provinceDefaultStyle() {
+      return {
+        color: '#6a1b9a',
+        weight: 2,
+        opacity: 1,
+        fillColor: '#ffffff',
+        fillOpacity: 0
+      };
+    }
+
+    // ===============================
+    // 5) โหลดข้อมูลจังหวัดจาก API
+    // ===============================
+    fetch(provinceApiUrl)
       .then(function (response) {
         if (!response.ok) {
-          throw new Error('โหลดข้อมูลจังหวัดไม่สำเร็จ');
+          throw new Error('โหลดข้อมูลจังหวัดจาก API ไม่สำเร็จ');
         }
         return response.json();
       })
@@ -289,130 +301,219 @@
         provinceLayer.addData(allProvinceData);
         provinceLayer.addTo(map);
 
-        createProvinceDropdown(allProvinceData);
+        buildProvinceSelect(allProvinceData);
+
+        document.getElementById('provinceStatus').innerHTML =
+          'โหลดรายชื่อจังหวัดสำเร็จ ' + allProvinceData.features.length + ' จังหวัด';
       })
       .catch(function (error) {
-        console.error('โหลดขอบเขตจังหวัดไม่สำเร็จ:', error);
-        alert('โหลดขอบเขตจังหวัดไม่สำเร็จ กรุณาตรวจสอบ API');
+        console.error('โหลดข้อมูลจังหวัดไม่สำเร็จ:', error);
+        document.getElementById('provinceStatus').innerHTML =
+          'โหลดข้อมูลจังหวัดไม่สำเร็จ กรุณาตรวจสอบ API';
       });
 
     // ===============================
-    // 4) ฟังก์ชันอ่านชื่อจังหวัด
+    // 6) อ่านชื่อจังหวัดภาษาไทย
     // ===============================
-    function getProvinceName(props) {
+    function getProvinceThaiName(props) {
       return (
-        props.ADM1_TH ||
-        props.ADM1_EN ||
+        props['ชื่อจังหวัดภาษาไทย'] ||
         props.PROV_NAMT ||
-        props.PROV_NAME ||
-        props.NAME_1 ||
-        props.NAME ||
-        props.name ||
-        props.Province ||
-        props.province ||
+        props.PROV_NAME_TH ||
+        props.PROV_TH ||
+        props.PV_NAME_TH ||
+        props.ADM1_TH ||
+        props.ADM1_TH_NAME ||
         props.CHANGWAT_T ||
-        props.CHANGWAT_E ||
+        props.NAME_TH ||
+        props.NAME_THAI ||
+        props.name_th ||
+        props.name ||
         'ไม่ทราบชื่อจังหวัด'
       );
     }
 
     // ===============================
-    // 5) สร้าง dropdown รายชื่อจังหวัด
+    // 7) อ่านชื่อจังหวัดภาษาอังกฤษ
     // ===============================
-    function createProvinceDropdown(data) {
+    function getProvinceEnglishName(props) {
+      return (
+        props['ชื่อจังหวัดภาษาอังกฤษ'] ||
+        props.PROV_NAME ||
+        props.PROV_NAME_EN ||
+        props.PROV_EN ||
+        props.PV_NAME_EN ||
+        props.ADM1_EN ||
+        props.ADM1_EN_NAME ||
+        props.CHANGWAT_E ||
+        props.NAME_EN ||
+        props.NAME_ENG ||
+        props.name_en ||
+        '-'
+      );
+    }
+
+    // ===============================
+    // 8) อ่านรหัสจังหวัด
+    // ===============================
+    function getProvinceCode(props) {
+      return (
+        props['รหัสจังหวัด'] ||
+        props.PROV_CODE ||
+        props.PV_CODE ||
+        props.ADM1_PCODE ||
+        props.CHANGWAT_C ||
+        props.CODE ||
+        props.code ||
+        '-'
+      );
+    }
+
+    // ===============================
+    // 9) คำนวณเนื้อที่
+    // ===============================
+    function getProvinceArea(feature) {
+      var props = feature.properties || {};
+
+      var areaFromField =
+        props['เนื้อที่'] ||
+        props.area ||
+        props.AREA ||
+        props.Shape_Area ||
+        props.Shape__Area ||
+        props.SHAPE_Area;
+
+      var areaSqKm = 0;
+
+      if (areaFromField && !isNaN(Number(areaFromField))) {
+        var value = Number(areaFromField);
+
+        if (value > 1000000) {
+          areaSqKm = value / 1000000;
+        } else {
+          areaSqKm = value;
+        }
+      } else {
+        var areaSqMeter = turf.area(feature);
+        areaSqKm = areaSqMeter / 1000000;
+      }
+
+      var areaRai = areaSqKm * 625;
+
+      return {
+        areaSqKm: areaSqKm.toLocaleString('th-TH', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }),
+        areaRai: areaRai.toLocaleString('th-TH', {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        })
+      };
+    }
+
+    // ===============================
+    // 10) สร้างตัวกรองชื่อจังหวัด
+    // ===============================
+    function buildProvinceSelect(data) {
       var select = document.getElementById('provinceSelect');
       select.innerHTML = '';
+
+      var defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = '-- เลือกจังหวัด --';
+      select.appendChild(defaultOption);
 
       var provinceNames = [];
 
       data.features.forEach(function (feature) {
         var props = feature.properties || {};
-        var name = getProvinceName(props);
+        var provinceThai = getProvinceThaiName(props);
 
-        if (provinceNames.indexOf(name) === -1) {
-          provinceNames.push(name);
+        if (
+          provinceThai &&
+          provinceThai !== 'ไม่ทราบชื่อจังหวัด' &&
+          provinceNames.indexOf(provinceThai) === -1
+        ) {
+          provinceNames.push(provinceThai);
+          provinceFeatureByName[provinceThai] = feature;
         }
       });
 
-      provinceNames.sort();
+      provinceNames.sort(function (a, b) {
+        return a.localeCompare(b, 'th');
+      });
 
-      provinceNames.forEach(function (name) {
+      provinceNames.forEach(function (provinceThai) {
         var option = document.createElement('option');
-        option.value = name;
-        option.textContent = name;
+        option.value = provinceThai;
+        option.textContent = provinceThai;
         select.appendChild(option);
       });
     }
 
     // ===============================
-    // 6) กรองจังหวัดตามที่เลือก
+    // 11) เลือกจังหวัดแล้วซูมไปจังหวัดนั้น
     // ===============================
-    function applyProvinceFilter() {
-      if (!allProvinceData) {
-        alert('ข้อมูลจังหวัดยังโหลดไม่เสร็จ');
+    function filterAndZoomToProvince(provinceThai) {
+      if (!provinceThai || !provinceFeatureByName[provinceThai]) {
         return;
       }
 
-      var select = document.getElementById('provinceSelect');
-      var selectedNames = Array.from(select.selectedOptions).map(function (option) {
-        return option.value;
-      });
+      var selectedFeature = provinceFeatureByName[provinceThai];
 
       provinceLayer.clearLayers();
-
-      if (selectedNames.length === 0) {
-        provinceLayer.addData(allProvinceData);
-      } else {
-        var filteredData = {
-          type: 'FeatureCollection',
-          features: allProvinceData.features.filter(function (feature) {
-            var props = feature.properties || {};
-            var name = getProvinceName(props);
-            return selectedNames.indexOf(name) !== -1;
-          })
-        };
-
-        provinceLayer.addData(filteredData);
-
-        if (provinceLayer.getBounds().isValid()) {
-          map.fitBounds(provinceLayer.getBounds());
-        }
-      }
+      provinceLayer.addData(selectedFeature);
 
       if (document.getElementById('provinceToggle').checked) {
         provinceLayer.addTo(map);
       }
+
+      var tempLayer = L.geoJSON(selectedFeature);
+
+      if (tempLayer.getBounds().isValid()) {
+        map.fitBounds(tempLayer.getBounds(), {
+          padding: [30, 30]
+        });
+      }
+
+      var props = selectedFeature.properties || {};
+      var areaInfo = getProvinceArea(selectedFeature);
+
+      document.getElementById('provinceStatus').innerHTML =
+        'กำลังแสดงจังหวัด ' + provinceThai +
+        '<br>เนื้อที่ ' + areaInfo.areaSqKm + ' ตร.กม.';
     }
 
     // ===============================
-    // 7) ล้างตัวกรอง แสดงทุกจังหวัด
+    // 12) แสดงทุกจังหวัด
     // ===============================
-    function clearProvinceFilter() {
+    function showAllProvinces() {
       if (!allProvinceData) {
-        alert('ข้อมูลจังหวัดยังโหลดไม่เสร็จ');
         return;
       }
 
-      var select = document.getElementById('provinceSelect');
-
-      Array.from(select.options).forEach(function (option) {
-        option.selected = false;
-      });
-
       provinceLayer.clearLayers();
       provinceLayer.addData(allProvinceData);
+
+      document.getElementById('provinceSelect').value = '';
 
       if (document.getElementById('provinceToggle').checked) {
         provinceLayer.addTo(map);
       }
 
       if (provinceLayer.getBounds().isValid()) {
-        map.fitBounds(provinceLayer.getBounds());
+        map.fitBounds(provinceLayer.getBounds(), {
+          padding: [30, 30]
+        });
       }
+
+      document.getElementById('provinceStatus').innerHTML =
+        'แสดงทุกจังหวัด';
     }
 
     // ===============================
-    // 8) ปุ่มเปิด-ปิดชั้นข้อมูล
+    // 13) Event เปิด-ปิดและตัวกรอง
     // ===============================
     document.getElementById('basinToggle').addEventListener('change', function () {
       if (this.checked) {
@@ -430,16 +531,21 @@
       }
     });
 
-    document.getElementById('applyProvinceFilter').addEventListener('click', function () {
-      applyProvinceFilter();
+    document.getElementById('provinceSelect').addEventListener('change', function () {
+      filterAndZoomToProvince(this.value);
     });
 
-    document.getElementById('clearProvinceFilter').addEventListener('click', function () {
-      clearProvinceFilter();
+    document.getElementById('zoomProvinceBtn').addEventListener('click', function () {
+      var provinceThai = document.getElementById('provinceSelect').value;
+      filterAndZoomToProvince(provinceThai);
+    });
+
+    document.getElementById('showAllProvinceBtn').addEventListener('click', function () {
+      showAllProvinces();
     });
 
     // ===============================
-    // 9) Layer Control บนแผนที่
+    // 14) Layer Control บนแผนที่
     // ===============================
     var overlayMaps = {
       'ขอบเขตลุ่มน้ำ': basinLayer,
