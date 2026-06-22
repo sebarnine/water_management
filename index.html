@@ -53,6 +53,15 @@
       border: 1px solid #ddd;
     }
 
+    .layer-box label {
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    .layer-box input {
+      margin-right: 8px;
+    }
+
     #map {
       flex: 1;
     }
@@ -70,28 +79,28 @@
 
       <div class="layer-box">
         <label>
-          <input type="checkbox" checked />
+          <input type="checkbox" id="basinToggle" checked />
           ขอบเขตลุ่มน้ำ
         </label>
       </div>
 
       <div class="layer-box">
         <label>
-          <input type="checkbox" checked />
+          <input type="checkbox" disabled />
           เส้นลำน้ำ
         </label>
       </div>
 
       <div class="layer-box">
         <label>
-          <input type="checkbox" />
+          <input type="checkbox" disabled />
           แหล่งน้ำ
         </label>
       </div>
 
       <div class="layer-box">
         <label>
-          <input type="checkbox" />
+          <input type="checkbox" disabled />
           พื้นที่ป่าไม้
         </label>
       </div>
@@ -101,56 +110,79 @@
   </div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script>
-  var map = L.map('map').setView([15.5, 103.5], 7);
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
-  }).addTo(map);
+  <script>
+    // สร้างแผนที่
+    var map = L.map('map').setView([15.5, 103.5], 7);
 
-  // ชั้นข้อมูลขอบเขตลุ่มน้ำจากไฟล์ basin.geojson
-  var basinLayer = L.geoJSON(null, {
-    style: {
-      color: '#d7191c',
-      weight: 3,
-      fillColor: '#ffffff',
-      fillOpacity: 0.08
-    },
-    onEachFeature: function (feature, layer) {
-      var name =
-        feature.properties.name ||
-        feature.properties.NAME ||
-        feature.properties.Name ||
-        feature.properties.basin_name ||
-        'ขอบเขตลุ่มน้ำ';
+    // แผนที่ฐาน OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
 
-      layer.bindPopup('<b>ขอบเขตลุ่มน้ำ</b><br>' + name);
-    }
-  });
+    // สร้างชั้นข้อมูลขอบเขตลุ่มน้ำ
+    var basinLayer = L.geoJSON(null, {
+      style: {
+        color: '#d7191c',
+        weight: 3,
+        fillColor: '#ffffff',
+        fillOpacity: 0.08
+      },
+      onEachFeature: function (feature, layer) {
+        var props = feature.properties || {};
 
-  fetch('basin.geojson')
-    .then(response => response.json())
-    .then(data => {
-      basinLayer.addData(data);
-      basinLayer.addTo(map);
+        var name =
+          props.name ||
+          props.NAME ||
+          props.Name ||
+          props.basin_name ||
+          props.BASIN_NAME ||
+          props.Subbasin ||
+          props.SUBBASIN ||
+          'ขอบเขตลุ่มน้ำ';
 
-      if (basinLayer.getBounds().isValid()) {
-        map.fitBounds(basinLayer.getBounds());
+        layer.bindPopup('<b>ขอบเขตลุ่มน้ำ</b><br>' + name);
       }
-    })
-    .catch(error => {
-      console.error('โหลดไฟล์ basin.geojson ไม่สำเร็จ:', error);
-      alert('โหลดไฟล์ basin.geojson ไม่สำเร็จ กรุณาตรวจสอบชื่อไฟล์');
     });
 
-  // ปุ่มเปิด-ปิดชั้นข้อมูลบนแผนที่
-  var overlayMaps = {
-    'ขอบเขตลุ่มน้ำ': basinLayer
-  };
+    // โหลดไฟล์ basin.geojson
+    fetch('basin.geojson')
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error('ไม่พบไฟล์ basin.geojson');
+        }
+        return response.json();
+      })
+      .then(function (data) {
+        basinLayer.addData(data);
+        basinLayer.addTo(map);
 
-  L.control.layers(null, overlayMaps, {
-    collapsed: false
-  }).addTo(map);
-</script>
+        if (basinLayer.getBounds().isValid()) {
+          map.fitBounds(basinLayer.getBounds());
+        }
+      })
+      .catch(function (error) {
+        console.error('โหลดไฟล์ basin.geojson ไม่สำเร็จ:', error);
+        alert('โหลดไฟล์ basin.geojson ไม่สำเร็จ กรุณาตรวจสอบชื่อไฟล์และตำแหน่งไฟล์');
+      });
+
+    // เปิด-ปิดชั้นข้อมูลจากเมนูด้านซ้าย
+    document.getElementById('basinToggle').addEventListener('change', function () {
+      if (this.checked) {
+        basinLayer.addTo(map);
+      } else {
+        map.removeLayer(basinLayer);
+      }
+    });
+
+    // ปุ่ม Layer Control ของ Leaflet
+    var overlayMaps = {
+      'ขอบเขตลุ่มน้ำ': basinLayer
+    };
+
+    L.control.layers(null, overlayMaps, {
+      collapsed: false
+    }).addTo(map);
+  </script>
 </body>
 </html>
