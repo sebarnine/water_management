@@ -172,7 +172,7 @@
       <div class="layer-box">
         <label>
           <input type="checkbox" id="waterbodyToggle" />
-          แหล่งน้ำ
+          แหล่งน้ำ / อุทกวิทยา
         </label>
       </div>
     </div>
@@ -180,8 +180,15 @@
     <div id="map"></div>
   </div>
 
+  <!-- Leaflet -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <!-- Turf สำหรับคำนวณพื้นที่ -->
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+  <!-- Esri Leaflet + Esri Vector สำหรับ ArcGIS VectorTileServer -->
+  <script src="https://unpkg.com/esri-leaflet/dist/esri-leaflet.js"></script>
+  <script src="https://unpkg.com/esri-leaflet-vector/dist/esri-leaflet-vector.js"></script>
 
   <script>
     // ===============================
@@ -247,7 +254,7 @@
       };
     }
 
-    function popupFromProperties(title, props) {
+    function popupFromProperties(props) {
       var html = '';
 
       Object.keys(props).slice(0, 12).forEach(function (key) {
@@ -610,7 +617,7 @@
         var popupText =
           '<b>โรงงานอุตสาหกรรม</b><br>' +
           '<b>ชื่อ:</b> ' + name + '<br>' +
-          popupFromProperties('ข้อมูลเพิ่มเติม', props);
+          popupFromProperties(props);
 
         layer.bindPopup(popupText);
       }
@@ -657,7 +664,7 @@
         var popupText =
           '<b>เส้นลำน้ำ</b><br>' +
           '<b>ชื่อ:</b> ' + name + '<br>' +
-          popupFromProperties('ข้อมูลเพิ่มเติม', props);
+          popupFromProperties(props);
 
         layer.bindPopup(popupText);
       }
@@ -686,87 +693,14 @@
       });
 
     // ===============================
-    // 9) แหล่งน้ำ จาก ArcGIS FeatureServer
+    // 9) แหล่งน้ำ / อุทกวิทยา จาก ArcGIS VectorTileServer
     // ===============================
-    var waterbodyLayer = L.geoJSON(null, {
-      style: {
-        color: '#0288d1',
-        weight: 1,
-        opacity: 1,
-        fillColor: '#4fc3f7',
-        fillOpacity: 0.35
-      },
-
-      pointToLayer: function (feature, latlng) {
-        return L.circleMarker(latlng, {
-          radius: 5,
-          color: '#0288d1',
-          weight: 1,
-          fillColor: '#4fc3f7',
-          fillOpacity: 0.85
-        });
-      },
-
-      onEachFeature: function (feature, layer) {
-        var props = feature.properties || {};
-
-        var name =
-          props.NAME ||
-          props.name ||
-          props.WATER_NAME ||
-          props.water_name ||
-          props.RES_NAME ||
-          props.res_name ||
-          props['ชื่อแหล่งน้ำ'] ||
-          props['ชื่อ'] ||
-          'แหล่งน้ำ';
-
-        var areaText = '';
-
-        if (
-          feature.geometry &&
-          (
-            feature.geometry.type === 'Polygon' ||
-            feature.geometry.type === 'MultiPolygon'
-          )
-        ) {
-          var areaInfo = getAreaInfo(feature);
-          areaText =
-            '<b>เนื้อที่:</b> ' + areaInfo.areaSqKm + ' ตร.กม.<br>' +
-            '<b>เนื้อที่:</b> ' + areaInfo.areaRai + ' ไร่<br>';
-        }
-
-        var popupText =
-          '<b>แหล่งน้ำ</b><br>' +
-          '<b>ชื่อ:</b> ' + name + '<br>' +
-          areaText +
-          popupFromProperties('ข้อมูลเพิ่มเติม', props);
-
-        layer.bindPopup(popupText);
+    var waterbodyLayer = L.esri.Vector.vectorTileLayer(
+      'https://tiles.arcgis.com/tiles/jSaRWj2TDlcN1zOC/arcgis/rest/services/Thailand_Hydrology/VectorTileServer',
+      {
+        opacity: 0.9
       }
-    });
-
-    var waterbodyApiUrl =
-      'https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/World_Water_Bodies/FeatureServer/0/query?' +
-      'where=1%3D1&' +
-      'outFields=*&' +
-      'returnGeometry=true&' +
-      'outSR=4326&' +
-      'f=geojson';
-
-    fetch(waterbodyApiUrl)
-      .then(function (response) {
-        if (!response.ok) {
-          throw new Error('โหลดแหล่งน้ำไม่สำเร็จ');
-        }
-        return response.json();
-      })
-      .then(function (data) {
-        waterbodyLayer.addData(data);
-      })
-      .catch(function (error) {
-        console.error('โหลดแหล่งน้ำไม่สำเร็จ:', error);
-      });
+    );
 
     // ===============================
     // 10) Event เปิด-ปิด Layer
@@ -841,7 +775,7 @@
       'ขอบเขตจังหวัด': provinceLayer,
       'โรงงานอุตสาหกรรม': factoryLayer,
       'เส้นลำน้ำ': riverLayer,
-      'แหล่งน้ำ': waterbodyLayer
+      'แหล่งน้ำ / อุทกวิทยา': waterbodyLayer
     };
 
     L.control.layers(null, overlayMaps, {
