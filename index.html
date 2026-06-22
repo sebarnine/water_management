@@ -101,41 +101,6 @@
       line-height: 1.4;
     }
 
-    /* สัญลักษณ์ธงโรงงานแบบลายเส้น ขนาดเล็ก */
-    .factory-flag-icon {
-      background: transparent;
-      border: none;
-    }
-
-    .factory-flag {
-      position: relative;
-      width: 12px;
-      height: 14px;
-      display: block;
-    }
-
-    .factory-flag::before {
-      content: "";
-      position: absolute;
-      left: 2px;
-      top: 1px;
-      width: 1.5px;
-      height: 12px;
-      background: #333;
-    }
-
-    .factory-flag::after {
-      content: "";
-      position: absolute;
-      left: 4px;
-      top: 2px;
-      width: 7px;
-      height: 5px;
-      border: 1.5px solid #333;
-      border-left: none;
-      background: transparent;
-    }
-
     #map {
       flex: 1;
     }
@@ -215,21 +180,35 @@
     <div id="map"></div>
   </div>
 
+  <!-- Leaflet -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <!-- Turf สำหรับคำนวณพื้นที่ -->
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+  <!-- Esri Leaflet + Esri Vector สำหรับ ArcGIS VectorTileServer -->
   <script src="https://unpkg.com/esri-leaflet/dist/esri-leaflet.js"></script>
   <script src="https://unpkg.com/esri-leaflet-vector/dist/esri-leaflet-vector.js"></script>
 
   <script>
+    // ===============================
+    // 1) สร้างแผนที่
+    // ===============================
     var map = L.map('map').setView([15.5, 103.5], 7);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap'
     }).addTo(map);
 
+    // ===============================
+    // 2) ตัวแปรกลาง
+    // ===============================
     var allBasinData = null;
     var basinFeatureByName = {};
 
+    // ===============================
+    // 3) ฟังก์ชันทั่วไป
+    // ===============================
     function getAreaInfo(feature) {
       var props = feature.properties || {};
 
@@ -285,6 +264,9 @@
       return html;
     }
 
+    // ===============================
+    // 4) ขอบเขตลุ่มน้ำหลัก basin.geojson
+    // ===============================
     function basinDefaultStyle() {
       return {
         color: '#d7191c',
@@ -495,6 +477,9 @@
         'แสดงทุกลุ่มน้ำ';
     }
 
+    // ===============================
+    // 5) ขอบเขตลุ่มน้ำย่อย sub_basin.geojson
+    // ===============================
     var subBasinLayer = L.geoJSON(null, {
       style: {
         color: '#00796b',
@@ -540,6 +525,9 @@
         console.error('โหลด sub_basin.geojson ไม่สำเร็จ:', error);
       });
 
+    // ===============================
+    // 6) ขอบเขตจังหวัด Thailand Province Boundaries.geojson
+    // ===============================
     var provinceLayer = L.geoJSON(null, {
       style: {
         color: '#6a1b9a',
@@ -595,21 +583,24 @@
       });
 
     // ===============================
-    // โรงงาน Factory_TH.geojson แบบสัญลักษณ์ธงลายเส้นขนาดเล็ก
+    // 7) โรงงาน Factory_TH.geojson
     // ===============================
-    var factoryIcon = L.divIcon({
-      className: 'factory-flag-icon',
-      html: '<span class="factory-flag"></span>',
-      iconSize: [12, 14],
-      iconAnchor: [3, 14],
-      popupAnchor: [0, -12]
-    });
-
     var factoryLayer = L.geoJSON(null, {
       pointToLayer: function (feature, latlng) {
-        return L.marker(latlng, {
-          icon: factoryIcon
+        return L.circleMarker(latlng, {
+          radius: 5,
+          color: '#e65100',
+          weight: 1,
+          fillColor: '#ff9800',
+          fillOpacity: 0.85
         });
+      },
+
+      style: {
+        color: '#e65100',
+        weight: 1,
+        fillColor: '#ff9800',
+        fillOpacity: 0.6
       },
 
       onEachFeature: function (feature, layer) {
@@ -646,6 +637,9 @@
         console.error('โหลด Factory_TH.geojson ไม่สำเร็จ:', error);
       });
 
+    // ===============================
+    // 8) เส้นลำน้ำ จาก ArcGIS FeatureServer
+    // ===============================
     var riverLayer = L.geoJSON(null, {
       style: {
         color: '#0066ff',
@@ -698,6 +692,9 @@
         console.error('โหลดเส้นลำน้ำไม่สำเร็จ:', error);
       });
 
+    // ===============================
+    // 9) แหล่งน้ำ / อุทกวิทยา จาก ArcGIS VectorTileServer
+    // ===============================
     var waterbodyLayer = L.esri.Vector.vectorTileLayer(
       'https://tiles.arcgis.com/tiles/jSaRWj2TDlcN1zOC/arcgis/rest/services/Thailand_Hydrology/VectorTileServer',
       {
@@ -705,6 +702,9 @@
       }
     );
 
+    // ===============================
+    // 10) Event เปิด-ปิด Layer
+    // ===============================
     document.getElementById('basinToggle').addEventListener('change', function () {
       if (this.checked) {
         basinLayer.addTo(map);
@@ -766,6 +766,9 @@
       showAllBasins();
     });
 
+    // ===============================
+    // 11) Layer Control บนแผนที่
+    // ===============================
     var overlayMaps = {
       'ขอบเขตลุ่มน้ำหลัก': basinLayer,
       'ขอบเขตลุ่มน้ำย่อย': subBasinLayer,
