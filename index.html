@@ -101,6 +101,19 @@
       line-height: 1.4;
     }
 
+    /* สัญลักษณ์ธงโรงงาน */
+    .factory-flag-icon {
+      background: transparent;
+      border: none;
+    }
+
+    .factory-flag-icon svg {
+      width: 24px;
+      height: 24px;
+      display: block;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
+    }
+
     #map {
       flex: 1;
     }
@@ -583,42 +596,52 @@
       });
 
     // ===============================
-    // 7) โรงงาน Factory_TH.geojson
+    // 7) โรงงาน Factory_TH.geojson แบบสัญลักษณ์ธงโรงงาน
     // ===============================
-   var factoryIcon = L.divIcon({
-  className: 'factory-flag-icon',
-  html: '🏭',
-  iconSize: [18, 18],
-  iconAnchor: [9, 9],
-  popupAnchor: [0, -10]
-});
-
-var factoryLayer = L.geoJSON(null, {
-  pointToLayer: function (feature, latlng) {
-    return L.marker(latlng, {
-      icon: factoryIcon
+    var factoryIcon = L.divIcon({
+      className: 'factory-flag-icon',
+      html: `
+        <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 58V8" stroke="#333" stroke-width="5" stroke-linecap="round"/>
+          <path d="M18 10H50L44 22L50 34H18Z" fill="#f57c00" stroke="#bf360c" stroke-width="2"/>
+          <path d="M23 34V58H55V38L44 43V38L33 43V34Z" fill="#757575" stroke="#333" stroke-width="2"/>
+          <rect x="27" y="45" width="6" height="6" fill="#e3f2fd"/>
+          <rect x="38" y="45" width="6" height="6" fill="#e3f2fd"/>
+          <rect x="48" y="45" width="5" height="6" fill="#e3f2fd"/>
+        </svg>
+      `,
+      iconSize: [24, 24],
+      iconAnchor: [12, 24],
+      popupAnchor: [0, -24]
     });
-  },
 
-  onEachFeature: function (feature, layer) {
-    var props = feature.properties || {};
+    var factoryLayer = L.geoJSON(null, {
+      pointToLayer: function (feature, latlng) {
+        return L.marker(latlng, {
+          icon: factoryIcon
+        });
+      },
 
-    var name =
-      props.NAME ||
-      props.name ||
-      props.FACTORY_NAME ||
-      props.factory_name ||
-      props['ชื่อโรงงาน'] ||
-      'โรงงานอุตสาหกรรม';
+      onEachFeature: function (feature, layer) {
+        var props = feature.properties || {};
 
-    var popupText =
-      '<b>โรงงานอุตสาหกรรม</b><br>' +
-      '<b>ชื่อ:</b> ' + name + '<br>' +
-      popupFromProperties(props);
+        var name =
+          props.NAME ||
+          props.name ||
+          props.FACTORY_NAME ||
+          props.factory_name ||
+          props['ชื่อโรงงาน'] ||
+          'โรงงานอุตสาหกรรม';
 
-    layer.bindPopup(popupText);
-  }
-});
+        var popupText =
+          '<b>โรงงานอุตสาหกรรม</b><br>' +
+          '<b>ชื่อ:</b> ' + name + '<br>' +
+          popupFromProperties(props);
+
+        layer.bindPopup(popupText);
+      }
+    });
+
     fetch('Factory_TH.geojson')
       .then(function (response) {
         if (!response.ok) {
