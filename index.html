@@ -101,17 +101,57 @@
   </div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+  var map = L.map('map').setView([15.5, 103.5], 7);
 
-  <script>
-    var map = L.map('map').setView([15.5, 103.5], 7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap'
-    }).addTo(map);
+  // ชั้นข้อมูลขอบเขตลุ่มน้ำจากไฟล์ basin.geojson
+  var basinLayer = L.geoJSON(null, {
+    style: {
+      color: '#d7191c',
+      weight: 3,
+      fillColor: '#ffffff',
+      fillOpacity: 0.08
+    },
+    onEachFeature: function (feature, layer) {
+      var name =
+        feature.properties.name ||
+        feature.properties.NAME ||
+        feature.properties.Name ||
+        feature.properties.basin_name ||
+        'ขอบเขตลุ่มน้ำ';
 
-    L.marker([15.2287, 104.8564])
-      .addTo(map)
-      .bindPopup('ตัวอย่างจุดข้อมูลผังน้ำอีสาน');
+      layer.bindPopup('<b>ขอบเขตลุ่มน้ำ</b><br>' + name);
+    }
+  });
+
+  fetch('basin.geojson')
+    .then(response => response.json())
+    .then(data => {
+      basinLayer.addData(data);
+      basinLayer.addTo(map);
+
+      if (basinLayer.getBounds().isValid()) {
+        map.fitBounds(basinLayer.getBounds());
+      }
+    })
+    .catch(error => {
+      console.error('โหลดไฟล์ basin.geojson ไม่สำเร็จ:', error);
+      alert('โหลดไฟล์ basin.geojson ไม่สำเร็จ กรุณาตรวจสอบชื่อไฟล์');
+    });
+
+  // ปุ่มเปิด-ปิดชั้นข้อมูลบนแผนที่
+  var overlayMaps = {
+    'ขอบเขตลุ่มน้ำ': basinLayer
+  };
+
+  L.control.layers(null, overlayMaps, {
+    collapsed: false
+  }).addTo(map);
+</script>
   </script>
 </body>
 </html>
