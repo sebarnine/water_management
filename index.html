@@ -585,44 +585,40 @@
     // ===============================
     // 7) โรงงาน Factory_TH.geojson
     // ===============================
-    var factoryLayer = L.geoJSON(null, {
-      pointToLayer: function (feature, latlng) {
-        return L.circleMarker(latlng, {
-          radius: 5,
-          color: '#e65100',
-          weight: 1,
-          fillColor: '#ff9800',
-          fillOpacity: 0.85
-        });
-      },
+   var factoryIcon = L.divIcon({
+  className: 'factory-flag-icon',
+  html: '🏭',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+  popupAnchor: [0, -10]
+});
 
-      style: {
-        color: '#e65100',
-        weight: 1,
-        fillColor: '#ff9800',
-        fillOpacity: 0.6
-      },
-
-      onEachFeature: function (feature, layer) {
-        var props = feature.properties || {};
-
-        var name =
-          props.NAME ||
-          props.name ||
-          props.FACTORY_NAME ||
-          props.factory_name ||
-          props['ชื่อโรงงาน'] ||
-          'โรงงานอุตสาหกรรม';
-
-        var popupText =
-          '<b>โรงงานอุตสาหกรรม</b><br>' +
-          '<b>ชื่อ:</b> ' + name + '<br>' +
-          popupFromProperties(props);
-
-        layer.bindPopup(popupText);
-      }
+var factoryLayer = L.geoJSON(null, {
+  pointToLayer: function (feature, latlng) {
+    return L.marker(latlng, {
+      icon: factoryIcon
     });
+  },
 
+  onEachFeature: function (feature, layer) {
+    var props = feature.properties || {};
+
+    var name =
+      props.NAME ||
+      props.name ||
+      props.FACTORY_NAME ||
+      props.factory_name ||
+      props['ชื่อโรงงาน'] ||
+      'โรงงานอุตสาหกรรม';
+
+    var popupText =
+      '<b>โรงงานอุตสาหกรรม</b><br>' +
+      '<b>ชื่อ:</b> ' + name + '<br>' +
+      popupFromProperties(props);
+
+    layer.bindPopup(popupText);
+  }
+});
     fetch('Factory_TH.geojson')
       .then(function (response) {
         if (!response.ok) {
