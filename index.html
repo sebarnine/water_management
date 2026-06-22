@@ -592,7 +592,7 @@
     var factoryLayer = L.geoJSON(null, {
       pointToLayer: function (feature, latlng) {
         return L.circleMarker(latlng, {
-          radius: 5,
+          radius: 2,
           color: '#e65100',
           weight: 1,
           fillColor: '#ff9800',
@@ -715,7 +715,7 @@
         weight: 1,
         opacity: 0.4,
         fillColor: '#f48fb1',  // เติมสีชมพูอ่อนโปร่งแสง
-        fillOpacity: 0.2
+        fillOpacity: 0.1
       },
       onEachFeature: function (feature, layer) {
         var props = feature.properties || {};
