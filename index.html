@@ -175,18 +175,22 @@
           แหล่งน้ำ / อุทกวิทยา
         </label>
       </div>
+
+      <div class="layer-box">
+        <label>
+          <input type="checkbox" id="twpProjToggle" />
+          พื้นที่โครงการ (TWP_proj)
+        </label>
+      </div>
     </div>
 
     <div id="map"></div>
   </div>
 
-  <!-- Leaflet -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-  <!-- Turf สำหรับคำนวณพื้นที่ -->
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
-  <!-- Esri Leaflet + Esri Vector สำหรับ ArcGIS VectorTileServer -->
   <script src="https://unpkg.com/esri-leaflet/dist/esri-leaflet.js"></script>
   <script src="https://unpkg.com/esri-leaflet-vector/dist/esri-leaflet-vector.js"></script>
 
@@ -443,7 +447,7 @@
       if (selectedLayer.getBounds().isValid()) {
         map.fitBounds(selectedLayer.getBounds(), {
           padding: [30, 30]
-        });
+          });
       }
 
       var areaInfo = getAreaInfo(selectedFeature);
@@ -703,6 +707,56 @@
     );
 
     // ===============================
+    // 9.5) ข้อมูลโครงการ TWP_proj.geojson (เพิ่มใหม่)
+    // ===============================
+    var twpProjLayer = L.geoJSON(null, {
+      style: {
+        color: '#e91e63',      // ขอบเส้นสีชมพูเข้มให้ตัดกับตัวอื่นชัดเจน
+        weight: 2.5,
+        opacity: 0.9,
+        fillColor: '#f48fb1',  // เติมสีชมพูอ่อนโปร่งแสง
+        fillOpacity: 0.2
+      },
+      onEachFeature: function (feature, layer) {
+        var props = feature.properties || {};
+        var areaInfo = getAreaInfo(feature);
+        
+        // ค้นหาฟิลด์ชื่อที่น่าจะเป็นชื่อโครงการหรือชื่อพื้นที่
+        var projName = 
+          props.NAME || 
+          props.name || 
+          props.PROJ_NAME || 
+          props.proj_name || 
+          props.project_name || 
+          props.TAMBON_T || 
+          'พื้นที่โครงการ (TWP_proj)';
+
+        var popupText =
+          '<b>รายละเอียดพื้นที่โครงการ (TWP_proj)</b><br>' +
+          '<b>ชื่อ/รหัส:</b> ' + projName + '<br>' +
+          '<b>เนื้อที่:</b> ' + areaInfo.areaSqKm + ' ตร.กม.<br>' +
+          '<b>เนื้อที่:</b> ' + areaInfo.areaRai + ' ไร่<br><hr>' +
+          popupFromProperties(props); // ดึงค่า Properties ทั้งหมดขึ้นมาแสดงผล
+
+        layer.bindPopup(popupText);
+      }
+    });
+
+    fetch('TWP_proj.geojson')
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error('ไม่พบไฟล์ TWP_proj.geojson');
+        }
+        return response.json();
+      })
+      .then(function (data) {
+        twpProjLayer.addData(data);
+      })
+      .catch(function (error) {
+        console.error('โหลดไฟล์ TWP_proj.geojson ไม่สำเร็จ:', error);
+      });
+
+    // ===============================
     // 10) Event เปิด-ปิด Layer
     // ===============================
     document.getElementById('basinToggle').addEventListener('change', function () {
@@ -753,6 +807,15 @@
       }
     });
 
+    // มอนิเตอร์ Event สำหรับเปิด-ปิด Layer TWP_proj
+    document.getElementById('twpProjToggle').addEventListener('change', function () {
+      if (this.checked) {
+        twpProjLayer.addTo(map);
+      } else {
+        map.removeLayer(twpProjLayer);
+      }
+    });
+
     document.getElementById('basinSelect').addEventListener('change', function () {
       filterAndZoomToBasin(this.value);
     });
@@ -775,7 +838,8 @@
       'ขอบเขตจังหวัด': provinceLayer,
       'โรงงานอุตสาหกรรม': factoryLayer,
       'เส้นลำน้ำ': riverLayer,
-      'แหล่งน้ำ / อุทกวิทยา': waterbodyLayer
+      'แหล่งน้ำ / อุทกวิทยา': waterbodyLayer,
+      'พื้นที่โครงการ (TWP_proj)': twpProjLayer // เพิ่มเข้ากล่องควบคุมชั้นข้อมูลมุมขวาบนของแผนที่
     };
 
     L.control.layers(null, overlayMaps, {
