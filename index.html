@@ -29,7 +29,7 @@
     }
 
     .sidebar {
-      width: 360px;
+      width: 370px;
       background: #f5f7fa;
       border-right: 1px solid #ddd;
       padding: 15px;
@@ -164,14 +164,14 @@
 
       <div class="layer-box">
         <label>
-          <input type="checkbox" disabled />
+          <input type="checkbox" id="riverToggle" />
           เส้นลำน้ำ
         </label>
       </div>
 
       <div class="layer-box">
         <label>
-          <input type="checkbox" disabled />
+          <input type="checkbox" id="waterbodyToggle" />
           แหล่งน้ำ
         </label>
       </div>
@@ -248,7 +248,7 @@
     }
 
     function popupFromProperties(title, props) {
-      var html = '<b>' + title + '</b><br>';
+      var html = '';
 
       Object.keys(props).slice(0, 12).forEach(function (key) {
         html += '<b>' + key + ':</b> ' + props[key] + '<br>';
@@ -631,7 +631,145 @@
       });
 
     // ===============================
-    // 8) Event เปิด-ปิด Layer
+    // 8) เส้นลำน้ำ จาก ArcGIS FeatureServer
+    // ===============================
+    var riverLayer = L.geoJSON(null, {
+      style: {
+        color: '#0066ff',
+        weight: 2,
+        opacity: 0.9
+      },
+
+      onEachFeature: function (feature, layer) {
+        var props = feature.properties || {};
+
+        var name =
+          props.NAME ||
+          props.name ||
+          props.RIVER_NAME ||
+          props.river_name ||
+          props.WATER_NAME ||
+          props.water_name ||
+          props['ชื่อลำน้ำ'] ||
+          props['ชื่อแม่น้ำ'] ||
+          'เส้นลำน้ำ';
+
+        var popupText =
+          '<b>เส้นลำน้ำ</b><br>' +
+          '<b>ชื่อ:</b> ' + name + '<br>' +
+          popupFromProperties('ข้อมูลเพิ่มเติม', props);
+
+        layer.bindPopup(popupText);
+      }
+    });
+
+    var riverApiUrl =
+      'https://gistdaportal.gistda.or.th/arcgis/rest/services/Hosted/%E0%B8%97%E0%B8%B2%E0%B8%87%E0%B8%99%E0%B9%89%E0%B8%B3%E0%B8%9B%E0%B8%A3%E0%B8%B0%E0%B9%80%E0%B8%97%E0%B8%A8%E0%B9%84%E0%B8%97%E0%B8%A2/FeatureServer/0/query?' +
+      'where=1%3D1&' +
+      'outFields=*&' +
+      'returnGeometry=true&' +
+      'outSR=4326&' +
+      'f=geojson';
+
+    fetch(riverApiUrl)
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error('โหลดเส้นลำน้ำไม่สำเร็จ');
+        }
+        return response.json();
+      })
+      .then(function (data) {
+        riverLayer.addData(data);
+      })
+      .catch(function (error) {
+        console.error('โหลดเส้นลำน้ำไม่สำเร็จ:', error);
+      });
+
+    // ===============================
+    // 9) แหล่งน้ำ จาก ArcGIS FeatureServer
+    // ===============================
+    var waterbodyLayer = L.geoJSON(null, {
+      style: {
+        color: '#0288d1',
+        weight: 1,
+        opacity: 1,
+        fillColor: '#4fc3f7',
+        fillOpacity: 0.35
+      },
+
+      pointToLayer: function (feature, latlng) {
+        return L.circleMarker(latlng, {
+          radius: 5,
+          color: '#0288d1',
+          weight: 1,
+          fillColor: '#4fc3f7',
+          fillOpacity: 0.85
+        });
+      },
+
+      onEachFeature: function (feature, layer) {
+        var props = feature.properties || {};
+
+        var name =
+          props.NAME ||
+          props.name ||
+          props.WATER_NAME ||
+          props.water_name ||
+          props.RES_NAME ||
+          props.res_name ||
+          props['ชื่อแหล่งน้ำ'] ||
+          props['ชื่อ'] ||
+          'แหล่งน้ำ';
+
+        var areaText = '';
+
+        if (
+          feature.geometry &&
+          (
+            feature.geometry.type === 'Polygon' ||
+            feature.geometry.type === 'MultiPolygon'
+          )
+        ) {
+          var areaInfo = getAreaInfo(feature);
+          areaText =
+            '<b>เนื้อที่:</b> ' + areaInfo.areaSqKm + ' ตร.กม.<br>' +
+            '<b>เนื้อที่:</b> ' + areaInfo.areaRai + ' ไร่<br>';
+        }
+
+        var popupText =
+          '<b>แหล่งน้ำ</b><br>' +
+          '<b>ชื่อ:</b> ' + name + '<br>' +
+          areaText +
+          popupFromProperties('ข้อมูลเพิ่มเติม', props);
+
+        layer.bindPopup(popupText);
+      }
+    });
+
+    var waterbodyApiUrl =
+      'https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/World_Water_Bodies/FeatureServer/0/query?' +
+      'where=1%3D1&' +
+      'outFields=*&' +
+      'returnGeometry=true&' +
+      'outSR=4326&' +
+      'f=geojson';
+
+    fetch(waterbodyApiUrl)
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error('โหลดแหล่งน้ำไม่สำเร็จ');
+        }
+        return response.json();
+      })
+      .then(function (data) {
+        waterbodyLayer.addData(data);
+      })
+      .catch(function (error) {
+        console.error('โหลดแหล่งน้ำไม่สำเร็จ:', error);
+      });
+
+    // ===============================
+    // 10) Event เปิด-ปิด Layer
     // ===============================
     document.getElementById('basinToggle').addEventListener('change', function () {
       if (this.checked) {
@@ -665,6 +803,22 @@
       }
     });
 
+    document.getElementById('riverToggle').addEventListener('change', function () {
+      if (this.checked) {
+        riverLayer.addTo(map);
+      } else {
+        map.removeLayer(riverLayer);
+      }
+    });
+
+    document.getElementById('waterbodyToggle').addEventListener('change', function () {
+      if (this.checked) {
+        waterbodyLayer.addTo(map);
+      } else {
+        map.removeLayer(waterbodyLayer);
+      }
+    });
+
     document.getElementById('basinSelect').addEventListener('change', function () {
       filterAndZoomToBasin(this.value);
     });
@@ -679,13 +833,15 @@
     });
 
     // ===============================
-    // 9) Layer Control บนแผนที่
+    // 11) Layer Control บนแผนที่
     // ===============================
     var overlayMaps = {
       'ขอบเขตลุ่มน้ำหลัก': basinLayer,
       'ขอบเขตลุ่มน้ำย่อย': subBasinLayer,
       'ขอบเขตจังหวัด': provinceLayer,
-      'โรงงานอุตสาหกรรม': factoryLayer
+      'โรงงานอุตสาหกรรม': factoryLayer,
+      'เส้นลำน้ำ': riverLayer,
+      'แหล่งน้ำ': waterbodyLayer
     };
 
     L.control.layers(null, overlayMaps, {
