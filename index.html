@@ -86,6 +86,13 @@
 
       <div class="layer-box">
         <label>
+          <input type="checkbox" id="provinceToggle" />
+          ขอบเขตจังหวัด
+        </label>
+      </div>
+
+      <div class="layer-box">
+        <label>
           <input type="checkbox" disabled />
           เส้นลำน้ำ
         </label>
@@ -109,22 +116,33 @@
     <div id="map"></div>
   </div>
 
+  <!-- Leaflet -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
+  <!-- Esri Leaflet สำหรับดึง ArcGIS FeatureServer -->
+  <script src="https://unpkg.com/esri-leaflet/dist/esri-leaflet.js"></script>
+
   <script>
-    // สร้างแผนที่
+    // ===============================
+    // 1) สร้างแผนที่
+    // ===============================
     var map = L.map('map').setView([15.5, 103.5], 7);
 
-    // แผนที่ฐาน OpenStreetMap
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // ===============================
+    // 2) แผนที่ฐาน OpenStreetMap
+    // ===============================
+    var baseMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    // สร้างชั้นข้อมูลขอบเขตลุ่มน้ำ
+    // ===============================
+    // 3) ชั้นข้อมูลขอบเขตลุ่มน้ำ จาก basin.geojson
+    // ===============================
     var basinLayer = L.geoJSON(null, {
       style: {
         color: '#d7191c',
         weight: 3,
+        opacity: 1,
         fillColor: '#ffffff',
         fillOpacity: 0.08
       },
@@ -132,6 +150,8 @@
         var props = feature.properties || {};
 
         var name =
+          props.RBASIN_NT ||
+          props.FIRST_RBAS ||
           props.name ||
           props.NAME ||
           props.Name ||
@@ -145,7 +165,6 @@
       }
     });
 
-    // โหลดไฟล์ basin.geojson
     fetch('basin.geojson')
       .then(function (response) {
         if (!response.ok) {
@@ -166,7 +185,44 @@
         alert('โหลดไฟล์ basin.geojson ไม่สำเร็จ กรุณาตรวจสอบชื่อไฟล์และตำแหน่งไฟล์');
       });
 
-    // เปิด-ปิดชั้นข้อมูลจากเมนูด้านซ้าย
+    // ===============================
+    // 4) ชั้นข้อมูลขอบเขตจังหวัด จาก ArcGIS FeatureServer
+    // ===============================
+    var provinceLayer = L.esri.featureLayer({
+      url: 'https://services1.arcgis.com/jSaRWj2TDlcN1zOC/arcgis/rest/services/Thailand_Province_Boundaries_view/FeatureServer/1',
+
+      style: function () {
+        return {
+          color: '#6a1b9a',
+          weight: 2,
+          opacity: 1,
+          fillColor: '#ffffff',
+          fillOpacity: 0
+        };
+      },
+
+      onEachFeature: function (feature, layer) {
+        var props = feature.properties || {};
+
+        var name =
+          props.ADM1_TH ||
+          props.ADM1_EN ||
+          props.PROV_NAMT ||
+          props.PROV_NAME ||
+          props.NAME_1 ||
+          props.NAME ||
+          props.name ||
+          props.Province ||
+          props.province ||
+          'จังหวัด';
+
+        layer.bindPopup('<b>ขอบเขตจังหวัด</b><br>' + name);
+      }
+    });
+
+    // ===============================
+    // 5) เปิด-ปิดชั้นข้อมูลจากเมนูด้านซ้าย
+    // ===============================
     document.getElementById('basinToggle').addEventListener('change', function () {
       if (this.checked) {
         basinLayer.addTo(map);
@@ -175,9 +231,20 @@
       }
     });
 
-    // ปุ่ม Layer Control ของ Leaflet
+    document.getElementById('provinceToggle').addEventListener('change', function () {
+      if (this.checked) {
+        provinceLayer.addTo(map);
+      } else {
+        map.removeLayer(provinceLayer);
+      }
+    });
+
+    // ===============================
+    // 6) ปุ่ม Layer Control บนแผนที่
+    // ===============================
     var overlayMaps = {
-      'ขอบเขตลุ่มน้ำ': basinLayer
+      'ขอบเขตลุ่มน้ำ': basinLayer,
+      'ขอบเขตจังหวัด': provinceLayer
     };
 
     L.control.layers(null, overlayMaps, {
